@@ -9,7 +9,7 @@
 #                     Key-Value) protected behind an air-gapped network
 #                     and a hardened Layer 4 TCP Stream Boundary Proxy.
 # Artifact .......... docker-compose.yml
-# Revision .......... 1.3.0
+# Revision .......... 1.4.0
 # Status ............ Production
 #
 # ----------------------------------------------------------------------------
@@ -25,6 +25,9 @@
 #     raw TCP streams (PostgreSQL :5432, MongoDB :27017, Redis :6379) to eliminate
 #     lateral movement vectors.
 #   - Stateless Host Exposure: Zero host ports published (127.0.0.1 / 0.0.0.0).
+#   - Automated Topology Discovery: `mongodb-init-replicaset` ensures the 
+#     single-node replica set announces the Layer 4 proxy address to prevent
+#     client-side split-brain and topology resolution crashes.
 #
 # ----------------------------------------------------------------------------
 # 2. DEPLOYMENT PREREQUISITES & ORDER
@@ -53,8 +56,6 @@ services:
   # --------------------------------------------------------------------------
   postgres:
     <<: *defaults
-    # WARNING: Do NOT use :latest in production without explicitly acknowledging the risks of automatic
-    # major version upgrades which break database files. Recommend pinning to e.g. postgres:16
     image: ${POSTGRES_IMAGE:-postgres:latest}
     container_name: stratum-database-postgres
     init: true
@@ -104,11 +105,11 @@ services:
       com.stratum-core.repository: "stratum-core"
       com.stratum-core.component: "database"
       com.stratum-core.role: "relational-engine"
-      com.stratum-core.revision: "1.3.0"
+      com.stratum-core.revision: "1.4.0"
       com.stratum-core.slogan: "Isolation by design, not by discipline."
 
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d$$POSTGRES_DB"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -119,13 +120,11 @@ services:
   # --------------------------------------------------------------------------
   mongodb:
     <<: *defaults
-    # WARNING: Do NOT use :latest in production! Pin to a specific version (e.g. mongo:7.0) to avoid 
-    # catastrophic breaking changes during unattended restarts.
     image: ${MONGO_IMAGE:-mongo:latest}
     container_name: stratum-database-mongodb
     init: true
 
-    command: ["--replSet", "rs0", "--keyFile", "/data/configdb/mongo-keyfile"]
+    command: ["--replSet", "rs0", "--bind_ip_all", "--keyFile", "/data/configdb/mongo-keyfile"]
 
     environment:
       TZ: ${TZ:-America/Bogota}
@@ -172,7 +171,7 @@ services:
       com.stratum-core.repository: "stratum-core"
       com.stratum-core.component: "database"
       com.stratum-core.role: "document-engine"
-      com.stratum-core.revision: "1.3.0"
+      com.stratum-core.revision: "1.4.0"
       com.stratum-core.slogan: "Isolation by design, not by discipline."
 
     healthcheck:
@@ -183,11 +182,55 @@ services:
       start_period: 30s
 
   # --------------------------------------------------------------------------
-  # 3. Key-Value & Cache Engine (Redis 7.x)
+  # 3. Replica Set Automated Initializer (Transient Bootstrap Container)
+  # --------------------------------------------------------------------------
+  mongodb-init-replicaset:
+    image: ${MONGO_IMAGE:-mongo:latest}
+    container_name: stratum-database-mongodb-init
+    restart: "no"
+    networks:
+      - database_internal
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      MONGO_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
+      MONGO_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+    command:
+      - "bash"
+      - "-c"
+      - |
+        mongosh --host stratum-database-mongodb:27017 -u "$$MONGO_ROOT_USERNAME" -p "$$MONGO_ROOT_PASSWORD" --authenticationDatabase admin --eval '
+          try {
+            var status = rs.status();
+            if (status.ok === 1) {
+              var cfg = rs.conf();
+              if (cfg.members[0].host !== "stratum-database-nginx:27017") {
+                cfg.members[0].host = "stratum-database-nginx:27017";
+                rs.reconfig(cfg, {force: true});
+                print("ReplicaSet reconfigurado exitosamente hacia stratum-database-nginx:27017");
+              } else {
+                print("ReplicaSet ya esta configurado con stratum-database-nginx:27017");
+              }
+            }
+          } catch (e) {
+            print("Inicializando ReplicaSet rs0 por primera vez...");
+            rs.initiate({
+              _id: "rs0",
+              members: [{ _id: 0, host: "stratum-database-nginx:27017" }]
+            });
+            print("ReplicaSet rs0 inicializado exitosamente.");
+          }
+        '
+    labels:
+      com.stratum-core.component: "database"
+      com.stratum-core.role: "replicaset-bootstrap"
+
+  # --------------------------------------------------------------------------
+  # 4. Key-Value & Cache Engine (Redis 7.x)
   # --------------------------------------------------------------------------
   redis:
     <<: *defaults
-    # WARNING: Do NOT use :latest in production! Pin to a specific version (e.g. redis:7.2-alpine).
     image: ${REDIS_IMAGE:-redis:latest}
     container_name: stratum-database-redis
     init: true
@@ -205,49 +248,7 @@ services:
       - "1"
 
     environment:
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
-
-    volumes:
-      - redis_data:/data
-
-    networks:
-      - database_internal
-
-    read_only: true
-
-    tmpfs:
-      - /tmp:size=16m,mode=1777
-
-    security_opt:
-      - no-new-privileges:true
-
-    cap_drop:
-      - ALL
-    cap_add:
-      - CHOWN
-      - SETGID
-      - SETUID
-      - SETPCAP
-
-    pids_limit: 100
-    mem_limit: 256m
-    memswap_limit: 256m
-
-    stop_signal: SIGTERM
-    stop_grace_period: 30s
-
-    labels:
-      org.opencontainers.image.authors: "Sandra Gabriela Puerto Torres <contacto@sandrapuerto.com>"
-      com.sandrapuerto.architecture: "Stratum-Core"
-      com.sandrapuerto.website: "https://sandrapuerto.com"
-      com.stratum-core.repository: "stratum-core"
-      com.stratum-core.component: "database"
-      com.stratum-core.role: "key-value-engine"
-      com.stratum-core.revision: "1.3.0"
-      com.stratum-core.slogan: "Isolation by design, not by discipline."
-
-    healthcheck:
-      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
+      REDIS_PASSWORD: ${REDIS_PASSWORD}      volumes:       - redis_data:/data      networks:       - database_internal      read_only: true      tmpfs:       - /tmp:size=16m,mode=1777      security_opt:       - no-new-privileges:true      cap_drop:       - ALL     cap_add:       - CHOWN       - SETGID       - SETUID       - SETPCAP      pids_limit: 100     mem_limit: 256m     memswap_limit: 256m      stop_signal: SIGTERM     stop_grace_period: 30s      labels:       org.opencontainers.image.authors: "Sandra Gabriela Puerto Torres <contacto@sandrapuerto.com>"       com.sandrapuerto.architecture: "Stratum-Core"       com.sandrapuerto.website: "https://sandrapuerto.com"       com.stratum-core.repository: "stratum-core"       com.stratum-core.component: "database"       com.stratum-core.role: "key-value-engine"       com.stratum-core.revision: "1.4.0"       com.stratum-core.slogan: "Isolation by design, not by discipline."      healthcheck:       test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
       interval: 30s
       start_interval: 5s
       timeout: 5s
@@ -255,11 +256,10 @@ services:
       start_period: 20s
 
   # --------------------------------------------------------------------------
-  # 4. Layer 4 TCP Stream Boundary Proxy (Nginx)
+  # 5. Layer 4 TCP Stream Boundary Proxy (Nginx)
   # --------------------------------------------------------------------------
   nginx-database:
     <<: *defaults
-    # WARNING: Pin to a specific version like nginx:1.25-alpine.
     image: ${NGINX_IMAGE:-nginx:latest}
     container_name: stratum-database-nginx
     init: true
@@ -310,7 +310,7 @@ services:
       com.stratum-core.repository: "stratum-core"
       com.stratum-core.component: "database"
       com.stratum-core.role: "boundary-client"
-      com.stratum-core.revision: "1.3.0"
+      com.stratum-core.revision: "1.4.0"
       com.stratum-core.slogan: "Isolation by design, not by discipline."
 
     healthcheck:
