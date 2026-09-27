@@ -119,9 +119,9 @@ services:
   # --------------------------------------------------------------------------
   # Primary Inbound Edge Tunnel (Host / Primary Organization)
   # --------------------------------------------------------------------------
-  cloudflared:
+  cloudflared-${PRIMARY_ORG_NAME:-primary}:
     <<: *cloudflared-base
-    container_name: stratum-gateway-cloudflared
+    container_name: stratum-gateway-cloudflared-${PRIMARY_ORG_NAME:-primary}
     command: tunnel --no-autoupdate run --token ${CF_TUNNEL_TOKEN}
 
     labels:
@@ -130,7 +130,7 @@ services:
       com.sandrapuerto.website: "https://sandrapuerto.com"
       com.stratum-core.repository: "stratum-core"
       com.stratum-core.component: "gateway"
-      com.stratum-core.role: "tunnel-client-primary"
+      com.stratum-core.role: "tunnel-${PRIMARY_ORG_NAME:-primary}"
       com.stratum-core.organization: "${PRIMARY_ORG_NAME:-primary}"
       com.stratum-core.revision: "1.2.0"
       com.stratum-core.slogan: "Isolation by design, not by discipline."
@@ -139,11 +139,12 @@ services:
   # Secondary Inbound Edge Tunnel (Secondary / Client Organization)
   # Activated via: docker compose --profile secondary up -d (or COMPOSE_PROFILES=secondary in .env)
   # --------------------------------------------------------------------------
-  cloudflared-secondary:
+  cloudflared-${SECONDARY_ORG_NAME:-secondary}:
     <<: *cloudflared-base
-    container_name: stratum-gateway-cloudflared-secondary
+    container_name: stratum-gateway-cloudflared-${SECONDARY_ORG_NAME:-secondary}
     command: tunnel --no-autoupdate run --token ${CF_TUNNEL_TOKEN_SECONDARY:-${CF_TUNNEL_TOKEN_ORG_A:-}}
     profiles:
+      - ${SECONDARY_ORG_NAME:-secondary}
       - secondary
       - org-a
       - multi-org
@@ -155,7 +156,7 @@ services:
       com.sandrapuerto.website: "https://sandrapuerto.com"
       com.stratum-core.repository: "stratum-core"
       com.stratum-core.component: "gateway"
-      com.stratum-core.role: "tunnel-client-secondary"
+      com.stratum-core.role: "tunnel-${SECONDARY_ORG_NAME:-secondary}"
       com.stratum-core.organization: "${SECONDARY_ORG_NAME:-secondary}"
       com.stratum-core.revision: "1.2.0"
       com.stratum-core.slogan: "Isolation by design, not by discipline."

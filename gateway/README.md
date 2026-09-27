@@ -205,7 +205,7 @@ Duplicate the secondary tunnel block and adapt the profile and container name:
 ```yaml
   cloudflared-client-x:
     <<: *cloudflared-base
-    container_name: stratum-gateway-cloudflared-client-x
+    container_name: stratum-gateway-cloudflared-${CLIENT_X_ORG_NAME:-client-x}
     command: tunnel --no-autoupdate run --token ${CF_TUNNEL_TOKEN_CLIENT_X}
     profiles:
       - client-x
@@ -217,7 +217,7 @@ Duplicate the secondary tunnel block and adapt the profile and container name:
       com.sandrapuerto.website: "https://sandrapuerto.com"
       com.stratum-core.repository: "stratum-core"
       com.stratum-core.component: "gateway"
-      com.stratum-core.role: "tunnel-client-x"
+      com.stratum-core.role: "tunnel-${CLIENT_X_ORG_NAME:-client-x}"
       com.stratum-core.organization: "${CLIENT_X_ORG_NAME:-client-x}"
       com.stratum-core.revision: "1.2.0"
       com.stratum-core.slogan: "Isolation by design, not by discipline."
