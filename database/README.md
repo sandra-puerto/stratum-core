@@ -19,7 +19,7 @@ The component contains four services:
 
 | Service | Role | Image | Wire Protocol / Port |
 |---|---|---|---|
-| `postgres` | Relational engine | `postgres:16-alpine` | TCP :5432 |
+| `postgres` | Relational engine | `postgres:latest` (Pin recommended) | TCP :5432 |
 | `mongodb` | Document engine | `mongo:7.0` | TCP :27017 |
 | `redis` | Key-value & cache | `redis:latest` | TCP :6379 |
 | `nginx-database` | Boundary client (TCP stream proxy) | `nginx:latest` | Layer 4 Router |
@@ -126,7 +126,7 @@ not change it without verifying the fix.
 
 | Variable | Required | Description |
 |---|---|---|
-| `MARIADB_ROOT_PASSWORD` | Yes | Administrative password for MariaDB |
+| `POSTGRES_PASSWORD` | Yes | Administrative password for PostgreSQL |
 | `MONGO_ROOT_USERNAME` | Yes | Administrative account for MongoDB |
 | `MONGO_ROOT_PASSWORD` | Yes | Administrative password for MongoDB |
 | `REDIS_PASSWORD` | Yes | Authentication password for Redis |
@@ -163,11 +163,11 @@ subject to regulatory oversight, migrate to Docker secrets:
 1. Create the secret outside version control:
 
    ```bash
-   printf '%s' "$MARIADB_ROOT_PASSWORD" | docker secret create mariadb_root_password -
+   printf '%s' "$POSTGRES_PASSWORD" | docker secret create postgres_password -
    ```
 
 2. Reference the secret in `docker-compose.yml` using the
-   `MARIADB_ROOT_PASSWORD_FILE` variable, which the official image
+   `POSTGRES_PASSWORD_FILE` variable, which the official image
    supports.
 
 3. Remove the plain-text value from `.env`.
@@ -182,13 +182,12 @@ information lives in the consuming application.
 
 **Recommended procedure for a consuming application.**
 
-For MariaDB, once the engine is up:
+For PostgreSQL, once the engine is up:
 
 ```sql
-CREATE DATABASE app_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'app_user'@'%' IDENTIFIED BY 'strong-password';
-GRANT SELECT, INSERT, UPDATE, DELETE ON app_db.* TO 'app_user'@'%';
-FLUSH PRIVILEGES;
+CREATE DATABASE app_db;
+CREATE USER app_user WITH ENCRYPTED PASSWORD 'strong-password';
+GRANT ALL PRIVILEGES ON DATABASE app_db TO app_user;
 ```
 
 For MongoDB:
@@ -197,10 +196,16 @@ For MongoDB:
 use app_db
 db.createUser({
   user: "app_user",
-  pwd: "strong-password",
+  pwd: "strong-password", // Must be URL-safe alphanumeric
   roles: [{ role: "readWrite", db: "app_db" }]
 })
 ```
+
+**Note on MongoDB Replica Sets:** Applications like Overleaf require MongoDB to run as a Replica Set for transaction support. The `docker-compose.yml` enforces `--replSet rs0` and `--keyFile`. You MUST generate the keyfile using:
+```bash
+docker run --rm -v stratum-database-mongodb-config:/data/configdb mongo:latest bash -c "openssl rand -base64 756 > /data/configdb/mongo-keyfile && chmod 400 /data/configdb/mongo-keyfile && chown 999:999 /data/configdb/mongo-keyfile"
+```
+And initiate the replica set manually via `mongosh`.
 
 For Redis, the current deployment uses a single password (`requirepass`).
 Per-user ACLs are supported by Redis 6+ and may be introduced if a
@@ -232,7 +237,7 @@ docker compose up -d
 docker compose ps
 
 # Inspect logs of a specific service.
-docker compose logs -f mariadb
+docker compose logs -f postgres
 
 # Stop the component (volumes persist).
 docker compose down
@@ -249,7 +254,7 @@ All four services declare health checks. Verify status:
 
 ```bash
 docker compose ps
-docker inspect --format '{{.State.Health.Status}}' stratum-database-mariadb
+docker inspect --format '{{.State.Health.Status}}' stratum-database-postgres
 docker inspect --format '{{.State.Health.Status}}' stratum-database-mongodb
 docker inspect --format '{{.State.Health.Status}}' stratum-database-redis
 docker inspect --format '{{.State.Health.Status}}' stratum-database-nginx
@@ -264,13 +269,12 @@ report a healthy status, as enforced by `depends_on` with
 Each engine supports online backup. Run backups from within the
 respective container to avoid network exposure.
 
-**MariaDB:**
+**PostgreSQL:**
 
 ```bash
-docker exec stratum-database-mariadb \
-  mariadb-dump -u root -p"$MARIADB_ROOT_PASSWORD" \
-  --all-databases --single-transaction --routines --triggers \
-  > backups/mariadb-$(date +%F).sql
+docker exec stratum-database-postgres \
+  pg_dump -U postgres --all-databases \
+  > backups/postgres-$(date +%F).sql
 ```
 
 **MongoDB:**
@@ -321,24 +325,24 @@ This component uses a **mixed version policy**. Two services are pinned
 and two float. Updates must be applied service by service, with the
 corresponding care for each.
 
-**Services with floating tags (`mariadb`, `redis`, `nginx-database`):**
+**Services with floating tags (`postgres`, `redis`, `nginx-database`):**
 
 ```bash
-docker compose pull mariadb redis nginx-database
-docker compose up -d mariadb redis nginx-database
+docker compose pull postgres redis nginx-database
+docker compose up -d postgres redis nginx-database
 ```
 
 Before pulling:
 
 1. **Back up the affected engine** (section 7.2). Mandatory for
-   `mariadb`; recommended for `redis`.
-2. **Review upstream release notes.** For `mariadb`, confirm that
+   `postgres`; recommended for `redis`.
+2. **Review upstream release notes.** For `postgres`, confirm that
    `latest` still resolves to the same major series. A major-series
    jump may render the data volume unreadable.
 3. **Record the current image digest** for rollback reference:
 
    ```bash
-   docker inspect --format '{{.Image}}' stratum-database-mariadb
+   docker inspect --format '{{.Image}}' stratum-database-postgres
    ```
 
 **Services with pinned tags (`mongodb`):**
@@ -351,19 +355,19 @@ verified, update the tag deliberately in a dedicated change.
 
 The maintenance script `scripts/update.sh` is intended to run monthly
 via cron. In this component, unattended updates are **not supported for
-`mariadb`**. Either:
+`postgres`**. Either:
 
 - Restrict the automatic update to `redis` and `nginx-database` only, or
-- Require manual confirmation before any update touches `mariadb`.
+- Require manual confirmation before any update touches `postgres`.
 
-Unattended `mariadb` updates risk a silent major-series jump. See
+Unattended `postgres` updates risk a silent major-series jump. See
 section 9.5.
 
 ## 8. Security Controls
 
 ### 8.1 Per-service controls
 
-| Control | mariadb | mongodb | redis | nginx-database |
+| Control | postgres | mongodb | redis | nginx-database |
 |---|---|---|---|---|
 | Immutable root filesystem | Yes | Yes | Yes | Yes |
 | Capability drop | `ALL` + 5 | `ALL` + 6 | `ALL` + 4 | `ALL` |
@@ -380,7 +384,7 @@ section 9.5.
 Each capability set is the minimum required for the corresponding
 upstream image to initialize and operate.
 
-**MariaDB** requires `CHOWN`, `DAC_OVERRIDE`, `FOWNER`, `SETGID`, and
+**PostgreSQL** requires `CHOWN`, `DAC_OVERRIDE`, `FOWNER`, `SETGID`, and
 `SETUID`. The upstream entrypoint starts as root, changes ownership of
 its data directory, and then drops privileges to its service account.
 Removing any of these capabilities prevents correct initialization on a
@@ -448,22 +452,17 @@ applications); applications provision their own scoped accounts.
 This component deliberately applies a **mixed version policy**, chosen
 per service based on the risk profile of each engine.
 
-#### 9.5.1 MariaDB — floating (`latest`)
+#### 9.5.1 PostgreSQL — floating (`latest`)
 
-MariaDB maintains a stable on-disk format across minor updates within a
-major series. The project has historically provided transparent
-in-place upgrades between consecutive major series (10.x → 11.x) via
-`mariadb-upgrade`, which the official image runs automatically on
-startup.
+PostgreSQL maintains a stable on-disk format across minor updates within a
+major series. However, upgrading between major series (15.x → 16.x) requires `pg_upgrade`.
 
 The residual risk is a **major-series jump**: if `latest` moves from
-11.x to 12.x, the automatic upgrade path may require intervention, and
-in rare cases the data directory may need migration before the new
-server can open it.
+16.x to 17.x, the new server CANNOT open the data directory.
 
 **Mitigation.** Pre-update backups are mandatory (section 7.2).
 Major-series reviews are mandatory (section 7.5). Unattended updates are
-not permitted (section 7.6).
+not permitted (section 7.6). We highly recommend pinning to `postgres:16`.
 
 #### 9.5.2 MongoDB — pinned to `7.0`
 
@@ -523,13 +522,13 @@ trade-off, not a compliance posture.
 | `network stratum_dmz declared as external, but could not be found` | `dmz` component not deployed | Deploy `dmz/` first |
 | `nginx-database` in restart loop | Engines not yet healthy | Wait for `start_period`; inspect engine logs |
 | `Pool overlaps with other one on this address space` | Subnet collision | Adjust subnet declaration |
-| MariaDB initialization loop | Insufficient volume permissions | Verify volume ownership; inspect `docker compose logs mariadb` |
+| PostgreSQL initialization loop | Insufficient volume permissions | Verify volume ownership; inspect `docker compose logs postgres` |
 | MongoDB fails to start on kernel ≥ 6.19 | Upstream bug SERVER-121912 | Verify the tag remains `mongo:7.0` |
 | Redis OOM-killed on startup | Module initialization exceeds `mem_limit` | Raise `mem_limit` and `memswap_limit` |
 | Redis exits during startup with permission error | Missing `CHOWN`, `SETGID`, `SETUID`, or `SETPCAP` | Verify `cap_add` in the redis service |
 | Redis connection refused | Password mismatch or AOF corruption | Inspect `docker compose logs redis`; verify `REDIS_PASSWORD` |
 | Boundary client returns 404 on `/healthz` | Configuration mount missing or incorrect | Verify `./nginx/nginx.conf` is mounted at the expected path |
-| Engine fails to start after a MariaDB update | Major-series jump incompatible with existing volume | Restore pre-update backup; pin the previous major series |
+| Engine fails to start after a PostgreSQL update | Major-series jump incompatible with existing volume | Restore pre-update backup; pin the previous major series |
 
 ## 11. References
 

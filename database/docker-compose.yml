@@ -53,6 +53,8 @@ services:
   # --------------------------------------------------------------------------
   postgres:
     <<: *defaults
+    # WARNING: Do NOT use :latest in production without explicitly acknowledging the risks of automatic
+    # major version upgrades which break database files. Recommend pinning to e.g. postgres:16
     image: ${POSTGRES_IMAGE:-postgres:latest}
     container_name: stratum-database-postgres
     init: true
@@ -117,9 +119,13 @@ services:
   # --------------------------------------------------------------------------
   mongodb:
     <<: *defaults
+    # WARNING: Do NOT use :latest in production! Pin to a specific version (e.g. mongo:7.0) to avoid 
+    # catastrophic breaking changes during unattended restarts.
     image: ${MONGO_IMAGE:-mongo:latest}
     container_name: stratum-database-mongodb
     init: true
+
+    command: ["--replSet", "rs0", "--keyFile", "/data/configdb/mongo-keyfile"]
 
     environment:
       TZ: ${TZ:-America/Bogota}
@@ -181,6 +187,7 @@ services:
   # --------------------------------------------------------------------------
   redis:
     <<: *defaults
+    # WARNING: Do NOT use :latest in production! Pin to a specific version (e.g. redis:7.2-alpine).
     image: ${REDIS_IMAGE:-redis:latest}
     container_name: stratum-database-redis
     init: true
@@ -252,6 +259,7 @@ services:
   # --------------------------------------------------------------------------
   nginx-database:
     <<: *defaults
+    # WARNING: Pin to a specific version like nginx:1.25-alpine.
     image: ${NGINX_IMAGE:-nginx:latest}
     container_name: stratum-database-nginx
     init: true
