@@ -6,9 +6,10 @@
 #
 # Component ......... gateway
 # Function .......... Access layer. Termination of inbound traffic from
-#                     the Internet and distribution to the Stratum DMZ.
+#                     the Internet (multi-tenant/multi-organization tunnels)
+#                     and distribution to the Stratum DMZ.
 # Artifact .......... docker-compose.yml
-# Revision .......... 1.1.7
+# Revision .......... 1.2.0
 # Status ............ Production
 #
 # ============================================================================
@@ -21,6 +22,31 @@ x-defaults: &defaults
       max-size: "10m"
       max-file: "3"
       compress: "true"
+
+x-cloudflared-base: &cloudflared-base
+  <<: *defaults
+  image: cloudflare/cloudflared:latest
+  init: true
+  user: "65534:65534"
+  networks:
+    - gateway_internal
+    - stratum_dmz
+  read_only: true
+  tmpfs:
+    - /tmp:size=16m,mode=1777,uid=65534,gid=65534
+    - /home/nonroot/.cloudflared:size=8m,mode=0700,uid=65534,gid=65534
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  pids_limit: 50
+  mem_limit: 128m
+  memswap_limit: 128m
+  stop_signal: SIGTERM
+  stop_grace_period: 15s
+  depends_on:
+    npm:
+      condition: service_healthy
 
 name: stratum-gateway
 
@@ -74,10 +100,13 @@ services:
     stop_grace_period: 30s
 
     labels:
+      org.opencontainers.image.authors: "Sandra Gabriela Puerto Torres <contacto@sandrapuerto.com>"
+      com.sandrapuerto.architecture: "Stratum-Core"
+      com.sandrapuerto.website: "https://sandrapuerto.com"
       com.stratum-core.repository: "stratum-core"
       com.stratum-core.component: "gateway"
       com.stratum-core.role: "reverse-proxy"
-      com.stratum-core.revision: "1.1.7"
+      com.stratum-core.revision: "1.2.0"
       com.stratum-core.slogan: "Isolation by design, not by discipline."
 
     healthcheck:
@@ -88,50 +117,67 @@ services:
       start_period: 30s
 
   # --------------------------------------------------------------------------
-  # Inbound Edge Tunnel (Cloudflare Tunnel)
+  # Primary Inbound Edge Tunnel (Default / Core Organization)
   # --------------------------------------------------------------------------
   cloudflared:
-    <<: *defaults
-    image: cloudflare/cloudflared:latest
+    <<: *cloudflared-base
     container_name: stratum-gateway-cloudflared
-    init: true
-
     command: tunnel --no-autoupdate run --token ${CF_TUNNEL_TOKEN}
 
-    user: "65534:65534"
-
-    networks:
-      - gateway_internal
-      - stratum_dmz
-
-    read_only: true
-
-    tmpfs:
-      - /tmp:size=16m,mode=1777,uid=65534,gid=65534
-      - /home/nonroot/.cloudflared:size=8m,mode=0700,uid=65534,gid=65534
-
-    security_opt:
-      - no-new-privileges:true
-
-    cap_drop:
-      - ALL
-
-    pids_limit: 50
-    mem_limit: 128m
-    memswap_limit: 128m
-
-    stop_signal: SIGTERM
-    stop_grace_period: 15s
-
-    depends_on:
-      npm:
-        condition: service_healthy
-
     labels:
+      org.opencontainers.image.authors: "Sandra Gabriela Puerto Torres <contacto@sandrapuerto.com>"
+      com.sandrapuerto.architecture: "Stratum-Core"
+      com.sandrapuerto.website: "https://sandrapuerto.com"
       com.stratum-core.repository: "stratum-core"
       com.stratum-core.component: "gateway"
-      com.stratum-core.role: "tunnel-client"
-      com.stratum-core.revision: "1.1.7"
+      com.stratum-core.role: "tunnel-client-primary"
+      com.stratum-core.revision: "1.2.0"
+      com.stratum-core.slogan: "Isolation by design, not by discipline."
+
+  # --------------------------------------------------------------------------
+  # Secondary Inbound Edge Tunnel (Organization A / Client Account)
+  # Activated via: docker compose --profile org-a up -d
+  # --------------------------------------------------------------------------
+  cloudflared-org-a:
+    <<: *cloudflared-base
+    container_name: stratum-gateway-cloudflared-org-a
+    command: tunnel --no-autoupdate run --token ${CF_TUNNEL_TOKEN_ORG_A:-}
+    profiles:
+      - org-a
+      - multi-org
+      - all
+
+    labels:
+      org.opencontainers.image.authors: "Sandra Gabriela Puerto Torres <contacto@sandrapuerto.com>"
+      com.sandrapuerto.architecture: "Stratum-Core"
+      com.sandrapuerto.website: "https://sandrapuerto.com"
+      com.stratum-core.repository: "stratum-core"
+      com.stratum-core.component: "gateway"
+      com.stratum-core.role: "tunnel-client-org-a"
+      com.stratum-core.revision: "1.2.0"
+      com.stratum-core.slogan: "Isolation by design, not by discipline."
+
+  # --------------------------------------------------------------------------
+  # Tertiary Inbound Edge Tunnel (Organization B / Partner Account)
+  # Activated via: docker compose --profile org-b up -d
+  # --------------------------------------------------------------------------
+  cloudflared-org-b:
+    <<: *cloudflared-base
+    container_name: stratum-gateway-cloudflared-org-b
+    command: tunnel --no-autoupdate run --token ${CF_TUNNEL_TOKEN_ORG_B:-}
+    profiles:
+      - org-b
+      - multi-org
+      - all
+
+    labels:
+      org.opencontainers.image.authors: "Sandra Gabriela Puerto Torres <contacto@sandrapuerto.com>"
+      com.sandrapuerto.architecture: "Stratum-Core"
+      com.sandrapuerto.website: "https://sandrapuerto.com"
+      com.stratum-core.repository: "stratum-core"
+      com.stratum-core.component: "gateway"
+      com.stratum-core.role: "tunnel-client-org-b"
+      com.stratum-core.revision: "1.2.0"
       com.stratum-core.slogan: "Isolation by design, not by discipline."
 
 networks:

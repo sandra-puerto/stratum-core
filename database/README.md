@@ -17,12 +17,12 @@ client, in accordance with the standard Stratum island pattern.
 
 The component contains four services:
 
-| Service | Role | Image | Version policy |
+| Service | Role | Image | Wire Protocol / Port |
 |---|---|---|---|
-| `mariadb` | Relational engine | `mariadb:latest` | Floating |
-| `mongodb` | Document engine | `mongo:7.0` | Pinned (see 9.5.2) |
-| `redis` | Key-value engine | `redis:latest` | Floating |
-| `nginx-database` | Boundary client (TCP proxy) | `nginx:latest` | Floating |
+| `postgres` | Relational engine | `postgres:16-alpine` | TCP :5432 |
+| `mongodb` | Document engine | `mongo:7.0` | TCP :27017 |
+| `redis` | Key-value & cache | `redis:latest` | TCP :6379 |
+| `nginx-database` | Boundary client (TCP stream proxy) | `nginx:latest` | Layer 4 Router |
 
 Engines are initialized with administrative accounts only. Application
 accounts are the responsibility of the consuming application.
@@ -51,16 +51,16 @@ accounts are the responsibility of the consuming application.
 
 ```mermaid
 graph TD
-    Consumers["📦 Application Consumers<br/>(Attached to stratum_dmz)"] -->|Query Port 3306 / 27017 / 6379| DMZ(("🛡️ stratum_dmz<br/>(Shared Network)"))
+    Consumers["📦 Application Consumers<br/>(Attached to stratum_dmz)"] -->|Query Ports :5432 / :3306 / :27017 / :6379| DMZ(("🛡️ stratum_dmz<br/>(Shared Network)"))
     
-    DMZ --> DBProxy["🔀 nginx-database<br/>(Boundary Client / TCP Stream Proxy)"]
+    DMZ --> DBProxy["🔀 stratum-database-nginx<br/>(Boundary Client / TCP Stream Proxy)"]
     
     subgraph AirGapped ["🔒 Air-Gapped Network (internal: true)"]
         DBNet(("stratum_database_internal<br/>(Zero Public / External Egress)"))
         DBProxy -->|Layer 4 Stream| DBNet
         
-        DBNet --> MariaDB[("🛢️ MariaDB<br/>Port 3306 (SQL)")]
-        DBNet --> MongoDB[("🍃 MongoDB<br/>Port 27017 (Doc)")]
+        DBNet --> Postgres[("🐘 PostgreSQL 16<br/>Port 5432 (SQL)")]
+        DBNet --> MongoDB[("🍃 MongoDB 7.0<br/>Port 27017 (Doc)")]
         DBNet --> Redis[("⚡ Redis<br/>Port 6379 (Cache)")]
     end
 
@@ -68,7 +68,7 @@ graph TD
     style DBProxy fill:#1e293b,stroke:#ec4899,stroke-width:2px,color:#fff
     style AirGapped fill:#030712,stroke:#ef4444,stroke-width:1px,color:#fff
     style DBNet fill:#1e293b,stroke:#ef4444,stroke-width:2px,color:#fff
-    style MariaDB fill:#1e293b,stroke:#38bdf8,stroke-width:1px,color:#fff
+    style Postgres fill:#1e293b,stroke:#38bdf8,stroke-width:1px,color:#fff
     style MongoDB fill:#1e293b,stroke:#10b981,stroke-width:1px,color:#fff
     style Redis fill:#1e293b,stroke:#ef4444,stroke-width:1px,color:#fff
 ```

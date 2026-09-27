@@ -89,6 +89,8 @@ the advisory before it is published.
 
 - Configuration errors in the `docker-compose.yml` files of any
   component.
+- Multi-organization tenant isolation weaknesses or cross-tunnel leakage
+  in `gateway/`.
 - Weaknesses in the network topology that allow a container to reach a
   network it is not attached to.
 - Capability or permission configurations that exceed the minimum

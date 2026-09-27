@@ -1,42 +1,56 @@
 ================================================================================
 STRATUM-CORE — LICENSE
-MIT License with Security Reporting Requirement
+Enhanced MIT License with Mandatory Architectural Attribution & Security Reporting
 ================================================================================
 
 Copyright (c) 2026 Sandra Gabriela Puerto Torres
 All rights reserved.
 
 --------------------------------------------------------------------------------
-1. GRANT OF RIGHTS
+1. GRANT OF RIGHTS (COMMERCIAL & MULTI-ORGANIZATION USE)
 --------------------------------------------------------------------------------
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Permission is hereby granted, free of charge, to any person or entity obtaining
+a copy of this software and associated documentation files (the "Software"), to
+deal in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do so,
+for personal, academic, multi-organization, or commercial purposes (including
+commercial hosting, SaaS infrastructure, Managed Service Providers (MSP), and
+client multi-tenancy), subject to the following mandatory conditions:
 
 --------------------------------------------------------------------------------
-2. CONDITIONS
+2. MANDATORY CONDITIONS
 --------------------------------------------------------------------------------
 
-The grant of rights set forth in Section 1 is expressly conditioned upon
+The grant of rights set forth in Section 1 is expressly conditioned upon strict
 compliance with the following:
 
-  (a) ATTRIBUTION.
+  (a) MANDATORY ARCHITECTURAL ATTRIBUTION.
 
-      The above copyright notice, this list of conditions, and the disclaimer
-      in Section 3 shall be included in all copies or substantial portions
-      of the Software.
+      Any person or organization that uses, deploys, forks, redistributes, or
+      incorporates the Software (including in commercial multi-tenant hosting,
+      SaaS infrastructure, internal enterprise systems, or client deliverables)
+      must satisfy the following attribution requirements:
 
-      Any derivative work, redistribution, or incorporation of the Software
-      into a larger work must preserve this notice in a location reasonably
-      visible to recipients of the work.
+      1. SOURCE & TECHNICAL DOCUMENTATION: Retain the original copyright notice
+         and the attribution credit ("Infrastructure Architecture: Stratum-Core
+         by Sandra Gabriela Puerto Torres — https://sandrapuerto.com") in all
+         project READMEs, repository documentation, and architectural diagrams.
+
+      2. RUNTIME CONTAINER METADATA: Preserve the author and architecture
+         metadata labels ('com.sandrapuerto.architecture',
+         'com.sandrapuerto.website', and 'org.opencontainers.image.authors')
+         within all running container definitions and Compose specifications.
+
+      3. PROVENANCE INTEGRITY: Derivative works or commercial services using
+         this architecture shall not remove, obscure, or alter the architectural
+         provenance credits to the original author.
 
   (b) SECURITY VULNERABILITY REPORTING.
 
-      Any person who discovers a security vulnerability in the Software shall
+      Any person or organization that discovers a potential security
+      vulnerability or multi-tenant boundary bypass in the Software shall
       report it promptly and privately to the copyright holder at:
 
           contacto@sandrapuerto.com
@@ -65,19 +79,20 @@ SOFTWARE.
 4. TERMINATION
 --------------------------------------------------------------------------------
 
-Any breach of the conditions set forth in Section 2 shall result in the
-automatic termination of the rights granted in Section 1. Upon termination,
-the licensee shall cease all use, reproduction, and distribution of the
-Software and shall destroy all copies in their possession.
+Any breach of the conditions set forth in Section 2 (including removal of
+mandatory attribution or irresponsible public disclosure of security flaws)
+shall result in the automatic termination of the rights granted in Section 1.
+Upon termination, the licensee shall cease all use, reproduction, and
+distribution of the Software and shall destroy all copies in their possession.
 
 --------------------------------------------------------------------------------
 5. GOVERNING PRINCIPLE
 --------------------------------------------------------------------------------
 
-This license is intended to operate as a permissive license in the spirit
-of the MIT License, with the addition of a binding security reporting
-requirement. Where ambiguity exists, this license shall be construed in
-favor of the copyright holder.
+This license is designed to foster wide commercial and open-source adoption
+under a permissive structure, while legally protecting the author's moral and
+professional credit as an intangible reputation asset. Where ambiguity exists,
+this license shall be construed in favor of the copyright holder.
 
 ================================================================================
 END OF LICENSE

@@ -84,7 +84,7 @@ services:
 
   anchor:
     <<: *defaults
-    image: alpine:3.20.3
+    image: ${ALPINE_IMAGE:-alpine:3.20.3}
     container_name: stratum-dmz-anchor
     init: true
 
@@ -125,6 +125,9 @@ services:
     stop_grace_period: 5s
 
     labels:
+      org.opencontainers.image.authors: "Sandra Gabriela Puerto Torres <contacto@sandrapuerto.com>"
+      com.sandrapuerto.architecture: "Stratum-Core"
+      com.sandrapuerto.website: "https://sandrapuerto.com"
       com.stratum-core.repository: "stratum-core"
       com.stratum-core.component: "dmz"
       com.stratum-core.role: "network-anchor"
