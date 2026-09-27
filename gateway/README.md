@@ -127,8 +127,12 @@ host firewall or via a dedicated egress gateway. See section 8.3.
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `CF_TUNNEL_TOKEN` | Yes | — | Cloudflare Tunnel authentication token |
-| `STRATUM_DMZ_NETWORK` | No | `stratum_dmz` | Name of the shared DMZ network |
+| `PRIMARY_ORG_NAME` | No | `primary` | Human-readable identifier for the primary host organization (e.g., `ICG` / `isora`) |
+| `SECONDARY_ORG_NAME` | No | `secondary` | Human-readable identifier for the secondary client organization (e.g., `SGPT` / `sandrapuerto`) |
+| `CF_TUNNEL_TOKEN` | Yes | — | Primary Cloudflare Tunnel authentication token (Host organization) |
+| `CF_TUNNEL_TOKEN_SECONDARY` | No | — | Secondary Cloudflare Tunnel authentication token (Client organization) |
+| `COMPOSE_PROFILES` | No | — | Active Docker Compose profiles separated by commas (e.g. `secondary` or `secondary,client-x`) |
+| `STRATUM_DMZ_NETWORK` | No | `stratum_dmz` | Name of the shared DMZ network provisioned by `dmz/` |
 | `TZ` | No | `America/Bogota` | Time zone for container logs |
 
 ### 5.2 Procedure
@@ -139,8 +143,15 @@ host firewall or via a dedicated egress gateway. See section 8.3.
    cp .env.example .env
    ```
 
-2. Edit `.env` and set `CF_TUNNEL_TOKEN` to the value issued by the
-   Cloudflare Zero Trust dashboard.
+2. Edit `.env` and configure your organization identifiers and Cloudflare Tunnel tokens:
+
+   ```dotenv
+   PRIMARY_ORG_NAME=ICG
+   SECONDARY_ORG_NAME=SGPT
+   CF_TUNNEL_TOKEN=eyJh...
+   CF_TUNNEL_TOKEN_SECONDARY=eyJh...
+   COMPOSE_PROFILES=secondary
+   ```
 
 3. Restrict file permissions:
 
@@ -162,28 +173,66 @@ following order is mandatory:
 ### 6.2 Commands
 
 ```bash
-# Standard Deployment (Primary / Default Organization Tunnel)
+# Standard Deployment (Boots tunnels according to COMPOSE_PROFILES in .env)
 docker compose up -d
 
-# Multi-Organization Deployment with Profiles:
-# Deploy Primary + Organization A
-docker compose --profile org-a up -d
-
-# Deploy Primary + Organization B
-docker compose --profile org-b up -d
-
-# Deploy All Configured Organization Tunnels simultaneously
-docker compose --profile all up -d
+# Manual Activation via CLI profile (Starts Primary + Secondary Tunnel):
+docker compose --profile secondary up -d
 
 # Verify operational state across all active tunnels
 docker compose ps
 
-# Inspect logs
+# Inspect real-time logs
 docker compose logs -f
 
 # Stop the component (volumes and networks persist)
 docker compose down
 ```
+
+### 6.3 Step-by-Step Guide: How to Add a New Organization / Tenant Tunnel
+
+When onboarding a new client or subsidiary enterprise, follow these 3 simple steps:
+
+#### Step 1: Add the new organization variables in `.env`
+Open `gateway/.env` and define the tenant name and token:
+```dotenv
+CLIENT_X_ORG_NAME=client-x
+CF_TUNNEL_TOKEN_CLIENT_X=eyJh...token_from_cloudflare_dashboard...
+```
+
+#### Step 2: Add the tunnel service in `docker-compose.yml`
+Duplicate the secondary tunnel block and adapt the profile and container name:
+```yaml
+  cloudflared-client-x:
+    <<: *cloudflared-base
+    container_name: stratum-gateway-cloudflared-client-x
+    command: tunnel --no-autoupdate run --token ${CF_TUNNEL_TOKEN_CLIENT_X}
+    profiles:
+      - client-x
+      - multi-org
+      - all
+    labels:
+      org.opencontainers.image.authors: "Sandra Gabriela Puerto Torres <contacto@sandrapuerto.com>"
+      com.sandrapuerto.architecture: "Stratum-Core"
+      com.sandrapuerto.website: "https://sandrapuerto.com"
+      com.stratum-core.repository: "stratum-core"
+      com.stratum-core.component: "gateway"
+      com.stratum-core.role: "tunnel-client-x"
+      com.stratum-core.organization: "${CLIENT_X_ORG_NAME:-client-x}"
+      com.stratum-core.revision: "1.2.0"
+      com.stratum-core.slogan: "Isolation by design, not by discipline."
+```
+
+#### Step 3: Activate the profile in `.env`
+Separate active profiles with commas in `gateway/.env`:
+```dotenv
+COMPOSE_PROFILES=secondary,client-x
+```
+Then run:
+```bash
+docker compose up -d
+```
+Docker Compose will launch the new tenant tunnel without stopping, restarting, or disturbing the existing running tunnels.
 
 ## 7. Operations
 
