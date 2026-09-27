@@ -117,7 +117,7 @@ services:
       start_period: 30s
 
   # --------------------------------------------------------------------------
-  # Primary Inbound Edge Tunnel (Default / Core Organization)
+  # Primary Inbound Edge Tunnel (Host / Primary Organization - e.g. domain.com)
   # --------------------------------------------------------------------------
   cloudflared:
     <<: *cloudflared-base
@@ -135,8 +135,8 @@ services:
       com.stratum-core.slogan: "Isolation by design, not by discipline."
 
   # --------------------------------------------------------------------------
-  # Secondary Inbound Edge Tunnel (Organization A / Client Account)
-  # Activated via: docker compose --profile org-a up -d
+  # Secondary Inbound Edge Tunnel (Tenant A / Client Organization - e.g. client-a.com)
+  # Activated via: docker compose --profile org-a up -d (or COMPOSE_PROFILES=org-a in .env)
   # --------------------------------------------------------------------------
   cloudflared-org-a:
     <<: *cloudflared-base
@@ -158,8 +158,8 @@ services:
       com.stratum-core.slogan: "Isolation by design, not by discipline."
 
   # --------------------------------------------------------------------------
-  # Tertiary Inbound Edge Tunnel (Organization B / Partner Account)
-  # Activated via: docker compose --profile org-b up -d
+  # Tertiary Inbound Edge Tunnel (Tenant B / Client Organization - e.g. client-b.com)
+  # Activated via: docker compose --profile org-b up -d (or COMPOSE_PROFILES=all in .env)
   # --------------------------------------------------------------------------
   cloudflared-org-b:
     <<: *cloudflared-base

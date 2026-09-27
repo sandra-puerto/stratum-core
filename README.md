@@ -38,7 +38,7 @@ graph TB
     subgraph MultiOrgWAN ["🌐 Multi-Organization Cloudflare Edge (Zero Trust)"]
         ClientA["🏢 Org A Users<br/>(org-a.com)"] --> CF_A["Cloudflare Account A<br/>(WAF & Access Policies)"]
         ClientB["🏢 Org B Users<br/>(org-b.com)"] --> CF_B["Cloudflare Account B<br/>(WAF & Access Policies)"]
-        ClientPri["👤 Primary Org Users<br/>(sandrapuerto.com)"] --> CF_Pri["Primary Cloudflare Account<br/>(WAF & Access Policies)"]
+        ClientPri["🏢 Primary Org Users<br/>(primary-org.com)"] --> CF_Pri["Primary Cloudflare Account<br/>(WAF & Access Policies)"]
     end
 
     subgraph Host ["🖥️ Virtual Private Server (Host Level - Zero Open Ingress Ports)"]
@@ -59,8 +59,8 @@ graph TB
         end
 
         subgraph ConsumerApps ["📦 Layer 3: Application Consumers (Isolated Workloads)"]
-            App1["landing-sgpt-web<br/>(sandrapuerto.com)"]
-            App2["overleaf-sharelatex<br/>(LaTeX Collaborative Studio)"]
+            App1["corp-portal<br/>(primary-org.com)"]
+            App2["overleaf-stratum<br/>(LaTeX Collaborative Studio)"]
             App3["client-b-erp<br/>(Enterprise Client App)"]
         end
 

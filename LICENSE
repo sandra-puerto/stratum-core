@@ -39,9 +39,9 @@ compliance with the following:
          project READMEs, repository documentation, and architectural diagrams.
 
       2. RUNTIME CONTAINER METADATA: Preserve the author and architecture
-         metadata labels ('com.sandrapuerto.architecture',
-         'com.sandrapuerto.website', and 'org.opencontainers.image.authors')
-         within all running container definitions and Compose specifications.
+         metadata labels ('com.sandrapuerto.architecture', 'com.sandrapuerto.website',
+         'org.opencontainers.image.authors', and 'com.stratum-core.*') within all
+         running container definitions and Compose specifications.
 
       3. PROVENANCE INTEGRITY: Derivative works or commercial services using
          this architecture shall not remove, obscure, or alter the architectural

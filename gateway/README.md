@@ -64,8 +64,8 @@ graph LR
     NPM -->|Route by Hostname| DMZ(("🛡️ stratum_dmz<br/>(Shared Network)"))
     
     subgraph TargetIslands ["🏝️ Target Consumers & Boundary Clients"]
-        DMZ --> App1["📦 Org Primary Apps (e.g. sandrapuerto.com)"]
-        DMZ --> App2["📦 Org A Apps (e.g. overleaf-sharelatex)"]
+        DMZ --> App1["📦 Org Primary Apps (e.g. primary-org.com)"]
+        DMZ --> App2["📦 Org A Apps (e.g. overleaf-stratum)"]
         DMZ --> App3["📦 Org B Apps / Client Workloads"]
         DMZ --> DBProxy["🗄️ database boundary (nginx-database)"]
     end
