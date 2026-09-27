@@ -119,7 +119,7 @@ services:
   # --------------------------------------------------------------------------
   # Primary Inbound Edge Tunnel (Host / Primary Organization)
   # --------------------------------------------------------------------------
-  cloudflared-${PRIMARY_ORG_NAME:-primary}:
+  cloudflared-primary:
     <<: *cloudflared-base
     container_name: stratum-gateway-cloudflared-${PRIMARY_ORG_NAME:-primary}
     command: tunnel --no-autoupdate run --token ${CF_TUNNEL_TOKEN}
@@ -139,7 +139,7 @@ services:
   # Secondary Inbound Edge Tunnel (Secondary / Client Organization)
   # Activated via: docker compose --profile secondary up -d (or COMPOSE_PROFILES=secondary in .env)
   # --------------------------------------------------------------------------
-  cloudflared-${SECONDARY_ORG_NAME:-secondary}:
+  cloudflared-secondary:
     <<: *cloudflared-base
     container_name: stratum-gateway-cloudflared-${SECONDARY_ORG_NAME:-secondary}
     command: tunnel --no-autoupdate run --token ${CF_TUNNEL_TOKEN_SECONDARY:-${CF_TUNNEL_TOKEN_ORG_A:-}}
