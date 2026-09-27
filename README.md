@@ -35,23 +35,20 @@ Traditional single-server Docker deployments and multi-client hosting suffer fro
 
 ```mermaid
 graph TB
-    subgraph MultiOrgWAN ["🌐 Multi-Organization Cloudflare Edge (Zero Trust)"]
-        ClientA["🏢 Org A Users<br/>(org-a.com)"] --> CF_A["Cloudflare Account A<br/>(WAF & Access Policies)"]
-        ClientB["🏢 Org B Users<br/>(org-b.com)"] --> CF_B["Cloudflare Account B<br/>(WAF & Access Policies)"]
+    subgraph MultiOrgWAN ["🌐 Dual-Organization Cloudflare Edge (Zero Trust)"]
         ClientPri["🏢 Primary Org Users<br/>(primary-org.com)"] --> CF_Pri["Primary Cloudflare Account<br/>(WAF & Access Policies)"]
+        ClientSec["🏢 Secondary Org Users<br/>(secondary-org.com)"] --> CF_Sec["Secondary Cloudflare Account<br/>(WAF & Access Policies)"]
     end
 
     subgraph Host ["🖥️ Virtual Private Server (Host Level - Zero Open Ingress Ports)"]
         subgraph GatewayIsland ["🚪 Layer 1: Multi-Tenant Access Tier (gateway/)"]
-            Tunnel_A["cloudflared-org-a<br/>(Token Org A)"]
-            Tunnel_B["cloudflared-org-b<br/>(Token Org B)"]
-            Tunnel_Pri["cloudflared-primary<br/>(Token Primary)"]
+            Tunnel_Pri["cloudflared-primary<br/>(Primary Token)"]
+            Tunnel_Sec["cloudflared-secondary<br/>(Secondary Token)"]
             
             NPM["Nginx Proxy Manager<br/>(Internal Routing & SSL)"]
 
-            Tunnel_A -->|HTTP Forward| NPM
-            Tunnel_B -->|HTTP Forward| NPM
             Tunnel_Pri -->|HTTP Forward| NPM
+            Tunnel_Sec -->|HTTP Forward| NPM
         end
 
         subgraph SharedDMZ ["🛡️ Layer 2: Shared Demilitarized Zone (dmz/)"]
@@ -59,9 +56,9 @@ graph TB
         end
 
         subgraph ConsumerApps ["📦 Layer 3: Application Consumers (Isolated Workloads)"]
-            App1["corp-portal<br/>(primary-org.com)"]
+            App1["primary-portal<br/>(primary-org.com)"]
             App2["overleaf-stratum<br/>(LaTeX Collaborative Studio)"]
-            App3["client-b-erp<br/>(Enterprise Client App)"]
+            App3["secondary-app<br/>(secondary-org.com)"]
         end
 
         subgraph DatabaseIsland ["🗄️ Layer 4: Data Layer Island (database/)"]

@@ -45,37 +45,32 @@ administrative interface for route and certificate management.
 
 ```mermaid
 graph LR
-    subgraph MultiOrgEdge ["☁️ Multi-Organization Cloudflare Edge"]
-        EdgePri["🏢 Primary Org / Personal<br/>(Cloudflare Account 1)"]
-        EdgeA["🏢 Org A / Client Account<br/>(Cloudflare Account 2)"]
-        EdgeB["🏢 Org B / Partner Account<br/>(Cloudflare Account 3)"]
+    subgraph MultiOrgEdge ["☁️ Dual-Organization Cloudflare Edge"]
+        EdgePri["🏢 Primary Organization<br/>(Cloudflare Account 1)"]
+        EdgeSec["🏢 Secondary / Client Org<br/>(Cloudflare Account 2)"]
     end
 
-    EdgePri -.->|Tunnel 1| CF_Pri["🔒 cloudflared (Primary)"]
-    EdgeA -.->|Tunnel 2| CF_A["🔒 cloudflared (Org A)"]
-    EdgeB -.->|Tunnel 3| CF_B["🔒 cloudflared (Org B)"]
+    EdgePri -.->|Primary Tunnel| CF_Pri["🔒 cloudflared (Primary)"]
+    EdgeSec -.->|Secondary Tunnel| CF_Sec["🔒 cloudflared-secondary"]
     
-    subgraph GatewayBoundary ["🚪 gateway/ Access Boundary (Multi-Tunnel)"]
+    subgraph GatewayBoundary ["🚪 gateway/ Access Boundary (Dual-Tunnel)"]
         CF_Pri -->|HTTP Forward| NPM["🔀 Nginx Proxy Manager<br/>(Bridge: internal + DMZ)"]
-        CF_A -->|HTTP Forward| NPM
-        CF_B -->|HTTP Forward| NPM
+        CF_Sec -->|HTTP Forward| NPM
     end
 
     NPM -->|Route by Hostname| DMZ(("🛡️ stratum_dmz<br/>(Shared Network)"))
     
     subgraph TargetIslands ["🏝️ Target Consumers & Boundary Clients"]
-        DMZ --> App1["📦 Org Primary Apps (e.g. primary-org.com)"]
-        DMZ --> App2["📦 Org A Apps (e.g. overleaf-stratum)"]
-        DMZ --> App3["📦 Org B Apps / Client Workloads"]
+        DMZ --> App1["📦 Primary Org Apps (e.g. primary-org.com)"]
+        DMZ --> App2["📦 Secondary Org Apps (e.g. secondary-app.com)"]
+        DMZ --> App3["📦 Shared Apps (e.g. overleaf-stratum)"]
         DMZ --> DBProxy["🗄️ database boundary (nginx-database)"]
     end
 
     style EdgePri fill:#f59e0b,stroke:#b45309,stroke-width:2px,color:#000
-    style EdgeA fill:#f59e0b,stroke:#b45309,stroke-width:2px,color:#000
-    style EdgeB fill:#f59e0b,stroke:#b45309,stroke-width:2px,color:#000
+    style EdgeSec fill:#f59e0b,stroke:#b45309,stroke-width:2px,color:#000
     style CF_Pri fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#fff
-    style CF_A fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#fff
-    style CF_B fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#fff
+    style CF_Sec fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#fff
     style NPM fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#fff
     style DMZ fill:#0f172a,stroke:#f59e0b,stroke-width:2px,color:#fff
     style TargetIslands fill:#030712,stroke:#334155,stroke-width:1px,color:#fff
