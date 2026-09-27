@@ -84,7 +84,7 @@ services:
 
   anchor:
     <<: *defaults
-    image: ${ALPINE_IMAGE:-alpine:3.20.3}
+    image: ${ALPINE_IMAGE:-alpine:latest}
     container_name: stratum-dmz-anchor
     init: true
 

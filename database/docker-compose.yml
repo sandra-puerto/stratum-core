@@ -49,11 +49,11 @@ name: stratum-database
 services:
 
   # --------------------------------------------------------------------------
-  # 1. Relational Engine (PostgreSQL 16 Alpine - Hardened Baseline)
+  # 1. Relational Engine (PostgreSQL)
   # --------------------------------------------------------------------------
   postgres:
     <<: *defaults
-    image: ${POSTGRES_IMAGE:-postgres:16-alpine}
+    image: ${POSTGRES_IMAGE:-postgres:latest}
     container_name: stratum-database-postgres
     init: true
 
@@ -113,11 +113,11 @@ services:
       start_period: 20s
 
   # --------------------------------------------------------------------------
-  # 2. Document Engine (MongoDB 7.0 LTS)
+  # 2. Document Engine (MongoDB)
   # --------------------------------------------------------------------------
   mongodb:
     <<: *defaults
-    image: ${MONGO_IMAGE:-mongo:7.0}
+    image: ${MONGO_IMAGE:-mongo:latest}
     container_name: stratum-database-mongodb
     init: true
 
@@ -170,19 +170,11 @@ services:
       com.stratum-core.slogan: "Isolation by design, not by discipline."
 
     healthcheck:
-      test:
-        - "CMD-SHELL"
-        - >
-          mongosh --quiet
-          -u "$$MONGO_INITDB_ROOT_USERNAME"
-          -p "$$MONGO_INITDB_ROOT_PASSWORD"
-          --authenticationDatabase admin
-          --eval "db.adminCommand({ping:1}).ok" | grep -q 1
-      interval: 30s
-      start_interval: 5s
-      timeout: 10s
+      test: ["CMD-SHELL", "mongosh --port 27017 --eval 'db.adminCommand({ping:1}).ok' --quiet | grep -q 1"]
+      interval: 15s
+      timeout: 5s
       retries: 5
-      start_period: 60s
+      start_period: 30s
 
   # --------------------------------------------------------------------------
   # 3. Key-Value & Cache Engine (Redis 7.x)
